@@ -1,0 +1,34 @@
+{
+  "name": "placetopay/php-gnupg",
+  "description": "A library to encrypt and decrypt with gpg",
+  "type": "library",
+  "authors": [
+    {
+      "name": "Enrique Garcia",
+      "email": "enrique.garcia@placetopay.com"
+    },
+    {
+      "name": "Diego Calle",
+      "email": "dnetix@gmail.com"
+    }
+  ],
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://dev.placetopay.com/repository"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "PlacetoPay\\GnuPG\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "classmap": [
+      "tests/"
+    ]
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^5.7"
+  }
+}
