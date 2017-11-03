@@ -2,6 +2,7 @@
   "name": "placetopay/php-gnupg",
   "description": "A library to encrypt and decrypt with gpg",
   "type": "library",
+  "license": "MIT",
   "authors": [
     {
       "name": "Enrique Garcia",
