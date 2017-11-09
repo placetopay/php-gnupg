@@ -46,6 +46,8 @@ class GnuPG
      */
     protected $error;
 
+    protected $additional = [];
+
     /**
      * Create the gnuPG object.
      *
@@ -57,6 +59,11 @@ class GnuPG
     {
         $gpgExecutable = isset($settings['gpgExecutable']) ? $settings['gpgExecutable'] : null;
         $ringPath = isset($settings['ringPath']) ? $settings['ringPath'] : null;
+
+        $ignoreTimeConflict = isset($settings['ignoreTimeConflict']) ? $settings['ignoreTimeConflict'] : null;
+        if ($ignoreTimeConflict) {
+            $this->additional[] = '--ignore-time-conflict';
+        }
 
         $this->gpgExecutable = $gpgExecutable;
         $this->ringPath = $ringPath;
@@ -114,6 +121,10 @@ class GnuPG
             2 => array("pipe", "w")   // stderr is a pipe that the child will write to
         );
         $pipes = null;
+
+        if ($this->additional) {
+            $command .= ' ' . implode(' ', $this->additional);
+        }
 
         // calls the process
         $process = proc_open($command, $descriptorspec, $pipes);
