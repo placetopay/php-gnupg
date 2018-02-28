@@ -1,6 +1,6 @@
 {
   "name": "placetopay/php-gnupg",
-  "description": "A library to encrypt and decrypt with gpg",
+  "description": "A library to encrypt and decrypt with GnuPG",
   "type": "library",
   "license": "MIT",
   "authors": [
@@ -10,7 +10,7 @@
     },
     {
       "name": "Diego Calle",
-      "email": "dnetix@gmail.com"
+      "email": "diego.calle@placetopay.com"
     }
   ],
   "repositories": [
