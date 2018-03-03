@@ -2,6 +2,9 @@
 
 namespace PlacetoPay\GnuPG;
 
+
+use PlacetoPay\GnuPG\Exception\InvalidArgumentException;
+
 /**
  * Class to interact with the gnuPG.
  */
@@ -88,27 +91,32 @@ class GnuPG
             $this->additional[] = '--ignore-time-conflict';
         }
 
-        $this->gpgExecutable = $gpgExecutable;
-        $this->ringPath = $ringPath;
-
         if (empty($gpgExecutable)) {
             if (strstr(PHP_OS, 'WIN')) {
-                $this->gpgExecutable = 'C:\gnupg\gpg';
+                $gpgExecutable = 'C:\gnupg\gpg';
             } elseif (@file_exists('/usr/local/bin/gpg')) {
-                $this->gpgExecutable = '/usr/local/bin/gpg';
+                $gpgExecutable = '/usr/local/bin/gpg';
             } else {
-                $this->gpgExecutable = '/usr/local/bin/gpg2';
+                $gpgExecutable = '/usr/local/bin/gpg2';
             }
         }
 
         // if is empty the home directory then assume based in the OS
         if (empty($ringPath)) {
             if (strstr(PHP_OS, 'WIN')) {
-                $this->ringPath = 'C:\gnupg';
+                $ringPath = 'C:\gnupg';
             } else {
-                $this->ringPath = '~/.gnupg';
+                $ringPath = '~/.gnupg';
             }
         }
+
+        if (!is_executable($gpgExecutable))
+            throw new InvalidArgumentException('The GnuPG executable file does not exist or can not be executed.', 1010);
+        if (!is_dir($ringPath))
+            throw new InvalidArgumentException('The ring path is not a directory or does not exists.', 1020);
+
+        $this->gpgExecutable = $gpgExecutable;
+        $this->ringPath = $ringPath;
     }
 
     /**
@@ -223,14 +231,12 @@ class GnuPG
      * @param  string $SearchCriteria the filter or criteria to search
      * @return false|array  false on error, the array with the keys in the keyring in success
      */
-    public function listKeys($KeyKind = 'public', $SearchCriteria = '')
+    public function listKeys($KeyKind = self::KEY_KIND_PUBLIC, $SearchCriteria = '')
     {
         // validate the KeyKind
         $KeyKind = strtolower(substr($KeyKind, 0, 3));
-        if (($KeyKind != 'pub') && ($KeyKind != 'sec')) {
-            $this->error = 'The Key kind must be public or secret';
-            return false;
-        }
+        if (($KeyKind != 'pub') && ($KeyKind != 'sec'))
+            throw new InvalidArgumentException('The Key kind must be public or secret.', 1050);
 
         // initialize the output
         $contents = '';
@@ -330,10 +336,8 @@ class GnuPG
     public function import($KeyBlock)
     {
         // Verify for the Key block contents
-        if (empty($KeyBlock)) {
-            $this->error = 'No valid key block was specified.';
-            return false;
-        }
+        if (empty($KeyBlock))
+            throw new InvalidArgumentException('No valid key block was specified.', 1060);
 
         // initialize the output
         $contents = '';
@@ -378,22 +382,16 @@ class GnuPG
     public function genKey($RealName, $Comment, $Email, $Passphrase = '', $ExpireDate = 0, $KeyType = 'DSA', $KeyLength = 1024, $SubkeyType = 'ELG-E', $SubkeyLength = 1024)
     {
         // validates the keytype
-        if (($KeyType != 'DSA') && ($KeyType != 'RSA')) {
-            $this->error = 'Invalid Key-Type, the allowed are DSA and RSA';
-            return false;
-        }
+        if (($KeyType != 'DSA') && ($KeyType != 'RSA'))
+            throw new InvalidArgumentException('Invalid Key-Type, the allowed are DSA and RSA.', 1070);
 
         // validates the subkey
-        if ((!empty($SubkeyType)) && ($SubkeyType != 'ELG-E')) {
-            $this->error = 'Invalid Subkey-Type, the allowed is ELG-E';
-            return false;
-        }
+        if ((!empty($SubkeyType)) && ($SubkeyType != 'ELG-E'))
+            throw new InvalidArgumentException('Invalid Subkey-Type, the allowed is ELG-E.', 1071);
 
         // validate the expiration date
-        if (!preg_match('/^(([0-9]+[dwmy]?)|([0-9]{4}-[0-9]{2}-[0-9]{2}))$/', $ExpireDate)) {
-            $this->error = 'Invalid Expire Date, the allowed values are <iso-date>|(<number>[d|w|m|y])';
-            return false;
-        }
+        if (!preg_match('/^(([0-9]+[dwmy]?)|([0-9]{4}-[0-9]{2}-[0-9]{2}))$/', $ExpireDate))
+            throw new InvalidArgumentException('Invalid Expire Date, the allowed values are <iso-date>|(<number>[d|w|m|y]).', 1072);
 
         // generates the batch configuration script
         $batch_script = "Key-Type: $KeyType\n" .
@@ -439,6 +437,11 @@ class GnuPG
      */
     public function encrypt($KeyID, $Passphrase, $RecipientKeyID, $Text)
     {
+        if (empty($KeyID))
+            throw new InvalidArgumentException('You must specify the KeyID used to encrypt.', 1080);
+        if (empty($RecipientKeyID))
+            throw new InvalidArgumentException('You must specify the RecipientKeyID who will receive the message.', 1081);
+
         // initialize the output
         $contents = '';
 
@@ -475,6 +478,13 @@ class GnuPG
      */
     public function encryptFile($KeyID, $Passphrase, $RecipientKeyID, $InputFile, $OutputFile)
     {
+        if (empty($KeyID))
+            throw new InvalidArgumentException('You must specify the KeyID used to encrypt.', 1090);
+        if (empty($RecipientKeyID))
+            throw new InvalidArgumentException('You must specify the RecipientKeyID who will receive the message.', 1091);
+        if (!is_readable($InputFile))
+            throw new InvalidArgumentException('The file to be encrypted must exist.', 1092);
+
         // initialize the output
         $contents = '';
 
@@ -510,6 +520,9 @@ class GnuPG
      */
     public function decrypt($KeyID, $Passphrase, $Text)
     {
+        if (empty($KeyID))
+            throw new InvalidArgumentException('You must specify the KeyID used to decrypt.', 1100);
+
         // the text to decrypt from another platforms can has a bad sequence
         // this line removes the bad data and converts to line returns
         $Text = preg_replace("/\x0D\x0D\x0A/s", "\n", $Text);
@@ -550,6 +563,11 @@ class GnuPG
      */
     public function decryptFile($KeyID, $Passphrase, $InputFile, $OutputFile)
     {
+        if (empty($KeyID))
+            throw new InvalidArgumentException('You must specify the KeyID used to decrypt.', 1110);
+        if (!is_readable($InputFile))
+            throw new InvalidArgumentException('The file to be decrypted must exist.', 1111);
+
         // initialize the output
         $contents = '';
 
@@ -583,19 +601,15 @@ class GnuPG
      * @param  string $KeyKind the kind of the keys, can be secret or public
      * @return boolean|string  true on success, otherwise false or the delete error code
      */
-    public function deleteKey($KeyID, $KeyKind = 'public')
+    public function deleteKey($KeyID, $KeyKind = self::KEY_KIND_PUBLIC)
     {
-        if (empty($KeyID)) {
-            $this->error = 'You must specify the KeyID to delete';
-            return false;
-        }
+        if (empty($KeyID))
+            throw new InvalidArgumentException('You must specify the KeyID to delete.', 1120);
 
         // validate the KeyKind
         $KeyKind = strtolower(substr($KeyKind, 0, 3));
-        if (($KeyKind != 'pub') && ($KeyKind != 'sec')) {
-            $this->error = 'The Key kind must be public or secret';
-            return false;
-        }
+        if (($KeyKind != 'pub') && ($KeyKind != 'sec'))
+            throw new InvalidArgumentException('The Key kind must be public or secret.', 1121);
 
         // initialize the output
         $contents = '';
@@ -633,6 +647,11 @@ class GnuPG
      */
     public function signKey($KeyID, $Passphrase, $RecipientKeyID, $CertificationLevel = self::CERT_LEVEL_NONE)
     {
+        if (empty($KeyID))
+            throw new InvalidArgumentException('You must specify the KeyID used to sign.', 1130);
+        if (empty($RecipientKeyID))
+            throw new InvalidArgumentException('You must specify the RecipientKeyID to be signed.', 1131);
+
         // initialize the output
         $contents = '';
 
