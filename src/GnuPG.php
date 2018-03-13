@@ -168,23 +168,23 @@ class GnuPG
 
     /**
      * Call a subprogram redirecting the standard pipes
-     * @param $command
+     * @param string $command
      * @param bool $input
-     * @param $output
+     * @param string $output
      * @return bool
      */
     private function forkProcess($command, $input = false, &$output)
     {
         // define the redirection pipes
-        $descriptorspec = array(
-            0 => array("pipe", "r"),  // stdin is a pipe that the child will read from
-            1 => array("pipe", "w"),  // stdout is a pipe that the child will write to
-            2 => array("pipe", "w")   // stderr is a pipe that the child will write to
-        );
+        $descriptorSpec = [
+            0 => ['pipe', 'r'],  // stdin is a pipe that the child will read from
+            1 => ['pipe', 'w'],  // stdout is a pipe that the child will write to
+            2 => ['pipe', 'w']   // stderr is a pipe that the child will write to
+        ];
         $pipes = null;
 
         // calls the process
-        $process = proc_open($command, $descriptorspec, $pipes);
+        $process = proc_open($command, $descriptorSpec, $pipes);
         if (is_resource($process)) {
             // writes the input
             if (!empty($input)) fwrite($pipes[0], $input);
@@ -227,15 +227,15 @@ class GnuPG
      *  KeyID, CreationDate, ExpirationDate, LocalID,
      *  Ownertrust, UserID]
      *
-     * @param  string $KeyKind the kind of the keys, can be secret or public
-     * @param  string $SearchCriteria the filter or criteria to search
+     * @param  string $keyKind the kind of the keys, can be secret or public
+     * @param  string $searchCriteria the filter or criteria to search
      * @return false|array  false on error, the array with the keys in the keyring in success
      */
-    public function listKeys($KeyKind = self::KEY_KIND_PUBLIC, $SearchCriteria = '')
+    public function listKeys($keyKind = self::KEY_KIND_PUBLIC, $searchCriteria = '')
     {
         // validate the KeyKind
-        $KeyKind = strtolower(substr($KeyKind, 0, 3));
-        if (($KeyKind != 'pub') && ($KeyKind != 'sec'))
+        $keyKind = strtolower(substr($keyKind, 0, 3));
+        if (($keyKind != 'pub') && ($keyKind != 'sec'))
             throw new InvalidArgumentException('The Key kind must be public or secret.', 1050);
 
         // initialize the output
@@ -245,7 +245,7 @@ class GnuPG
         if ($this->forkProcess($this->buildGnuPGCommand([
             '--with-colons' => null,
             '--with-fingerprint' => null,
-            (($KeyKind == 'pub') ? '--list-public-keys' : '--list-secret-keys') => (empty($SearchCriteria) ? null : $SearchCriteria)
+            (($keyKind == 'pub') ? '--list-public-keys' : '--list-secret-keys') => (empty($searchCriteria) ? null : $searchCriteria)
         ]),
             false, $contents)) {
 
@@ -302,12 +302,12 @@ class GnuPG
      *
      * Export all keys from all keyrings, or if at least one name is given, those of the given name.
      *
-     * @param $KeyID
+     * @param $keyId
      * @return false|string  false on error, the key block with the exported keys
      */
-    public function export($KeyID = null)
+    public function export($keyId = null)
     {
-        $KeyID = empty($KeyID) ? '' : $KeyID;
+        $keyId = empty($keyId) ? '' : $keyId;
 
         // initialize the output
         $contents = '';
@@ -315,7 +315,7 @@ class GnuPG
         // execute the GPG command
         if ($this->forkProcess($this->buildGnuPGCommand([
             '--armor' => null,
-            '--export' => $KeyID
+            '--export' => $keyId
         ]),
             false, $contents))
             return (empty($contents) ? false : $contents);
@@ -330,13 +330,13 @@ class GnuPG
      * keyring and already existing keys are updated. Note that GnuPG does not
      * import keys that are not self-signed.
      *
-     * @param  string $KeyBlock The PGP block with the key(s).
+     * @param  string $keyBlock The PGP block with the key(s).
      * @return false|array  false on error, the array with [KeyID, UserID] elements of imported keys on success.
      */
-    public function import($KeyBlock)
+    public function import($keyBlock)
     {
         // Verify for the Key block contents
-        if (empty($KeyBlock))
+        if (empty($keyBlock))
             throw new InvalidArgumentException('No valid key block was specified.', 1060);
 
         // initialize the output
@@ -347,7 +347,7 @@ class GnuPG
             '--status-fd' => '1',
             '--import' => null
         ]),
-            $KeyBlock, $contents)) {
+            $keyBlock, $contents)) {
             // initialize the array data
             $imported_keys = array();
 
@@ -368,42 +368,42 @@ class GnuPG
     /**
      * Generate a new key pair.
      *
-     * @param  string $RealName The real name of the user or key.
-     * @param  string $Comment Any explanatory commentary.
-     * @param  string $Email The e-mail for the user.
-     * @param  string $Passphrase Passphrase for the secret key, default is not to use any passphrase.
-     * @param  int|string $ExpireDate Set the expiration date for the key (and the subkey).  It may either be entered in ISO date format (2000-08-15) or as number of days, weeks, month or years (<number>[d|w|m|y]). Without a letter days are assumed.
-     * @param  string $KeyType Set the type of the key, the allowed values are DSA and RSA, default is DSA.
-     * @param  int $KeyLength Length of the key in bits, default is 1024.
-     * @param  string $SubkeyType This generates a secondary key, currently only one subkey can be handled ELG-E.
-     * @param  int $SubkeyLength Length of the subkey in bits, default is 1024.
+     * @param  string $realName The real name of the user or key.
+     * @param  string $comment Any explanatory commentary.
+     * @param  string $email The e-mail for the user.
+     * @param  string $passPhrase Pass phrase for the secret key, default is not to use any passphrase.
+     * @param  int|string $expireDate Set the expiration date for the key (and the subkey).  It may either be entered in ISO date format (2000-08-15) or as number of days, weeks, month or years (<number>[d|w|m|y]). Without a letter days are assumed.
+     * @param  string $keyType Set the type of the key, the allowed values are DSA and RSA, default is DSA.
+     * @param  int $keyLength Length of the key in bits, default is 1024.
+     * @param  string $subKeyType This generates a secondary key, currently only one subkey can be handled ELG-E.
+     * @param  int $subKeyLength Length of the subkey in bits, default is 1024.
      * @return boolean|array  false on error, the fingerprint of the created key pair in success
      */
-    public function genKey($RealName, $Comment, $Email, $Passphrase = '', $ExpireDate = 0, $KeyType = 'DSA', $KeyLength = 1024, $SubkeyType = 'ELG-E', $SubkeyLength = 1024)
+    public function genKey($realName, $comment, $email, $passPhrase = '', $expireDate = 0, $keyType = 'DSA', $keyLength = 1024, $subKeyType = 'ELG-E', $subKeyLength = 1024)
     {
         // validates the keytype
-        if (($KeyType != 'DSA') && ($KeyType != 'RSA'))
+        if (($keyType != 'DSA') && ($keyType != 'RSA'))
             throw new InvalidArgumentException('Invalid Key-Type, the allowed are DSA and RSA.', 1070);
 
         // validates the subkey
-        if ((!empty($SubkeyType)) && ($SubkeyType != 'ELG-E'))
+        if ((!empty($subKeyType)) && ($subKeyType != 'ELG-E'))
             throw new InvalidArgumentException('Invalid Subkey-Type, the allowed is ELG-E.', 1071);
 
         // validate the expiration date
-        if (!preg_match('/^(([0-9]+[dwmy]?)|([0-9]{4}-[0-9]{2}-[0-9]{2}))$/', $ExpireDate))
+        if (!preg_match('/^(([0-9]+[dwmy]?)|([0-9]{4}-[0-9]{2}-[0-9]{2}))$/', $expireDate))
             throw new InvalidArgumentException('Invalid Expire Date, the allowed values are <iso-date>|(<number>[d|w|m|y]).', 1072);
 
         // generates the batch configuration script
-        $batch_script = "Key-Type: $KeyType\n" .
-            "Key-Length: $KeyLength\n";
-        if (($KeyType == 'DSA') && ($SubkeyType == 'ELG-E'))
-            $batch_script .= "Subkey-Type: $SubkeyType\n" .
-                "Subkey-Length: $SubkeyLength\n";
-        $batch_script .= "Name-Real: $RealName\n" .
-            "Name-Comment: $Comment\n" .
-            "Name-Email: $Email\n" .
-            "Expire-Date: $ExpireDate\n" .
-            "Passphrase: $Passphrase\n" .
+        $batch_script = "Key-Type: $keyType\n" .
+            "Key-Length: $keyLength\n";
+        if (($keyType == 'DSA') && ($subKeyType == 'ELG-E'))
+            $batch_script .= "Subkey-Type: $subKeyType\n" .
+                "Subkey-Length: $subKeyLength\n";
+        $batch_script .= "Name-Real: $realName\n" .
+            "Name-Comment: $comment\n" .
+            "Name-Email: $email\n" .
+            "Expire-Date: $expireDate\n" .
+            "Passphrase: $passPhrase\n" .
             "%commit\n" .
             "%echo done with success\n";
 
@@ -429,35 +429,42 @@ class GnuPG
     /**
      * Encrypt and sign data.
      *
-     * @param  string $KeyID the key id used to encrypt
-     * @param  string $Passphrase the passphrase to open the key used to encrypt
-     * @param  string $RecipientKeyID the recipient key id
-     * @param  string $Text data to encrypt
+     * @param  string $keyId the key id used to encrypt
+     * @param  string $passPhrase the pass phrase to open the key used to encrypt
+     * @param  string $recipientKeyId the recipient key id
+     * @param  string $text data to encrypt
+     * @param  bool $sign indicates if must sign the content
      * @return false|string  false on error, the encrypted data on success
      */
-    public function encrypt($KeyID, $Passphrase, $RecipientKeyID, $Text)
+    public function encrypt($keyId, $passPhrase, $recipientKeyId, $text, $sign = true)
     {
-        if (empty($KeyID))
+        if (empty($keyId))
             throw new InvalidArgumentException('You must specify the KeyID used to encrypt.', 1080);
-        if (empty($RecipientKeyID))
+        if (empty($recipientKeyId))
             throw new InvalidArgumentException('You must specify the RecipientKeyID who will receive the message.', 1081);
 
         // initialize the output
         $contents = '';
 
-        $result = $this->forkProcess($this->buildGnuPGCommand([
+        // execute the GPG command
+        $options = [
             '--batch' => null,
             '--yes' => null,
             '--armor' => null,
-            '--sign' => null,
-            '--force-v3-sigs' => null,
             '--passphrase-fd' => '0',
-            '--local-user' => $KeyID,
-            '--default-key' => $KeyID,
-            '--recipient' => $RecipientKeyID,
+            '--local-user' => $keyId,
+            '--default-key' => $keyId,
+            '--recipient' => $recipientKeyId,
             '--encrypt' => null
-        ]),
-            $Passphrase . "\n" . $Text, $contents);
+        ];
+        if ($sign) {
+            $options = array_merge([
+                '--sign' => null,
+                '--force-v3-sigs' => null,
+            ], $options);
+        }
+        $result = $this->forkProcess($this->buildGnuPGCommand($options),
+            $passPhrase . "\n" . $text, $contents);
 
         // execute the GPG command
         if ($result)
@@ -469,40 +476,46 @@ class GnuPG
     /**
      * Encrypt and sign a file.
      *
-     * @param  string $KeyID the key id used to encrypt
-     * @param  string $Passphrase the passphrase to open the key used to encrypt
-     * @param  string $RecipientKeyID the recipient key id
-     * @param  string $InputFile file to encrypt
-     * @param  string $OutputFile file encrypted
+     * @param  string $keyId the key id used to encrypt
+     * @param  string $passPhrase the pass phrase to open the key used to encrypt
+     * @param  string $recipientKeyId the recipient key id
+     * @param  string $inputFile file to encrypt
+     * @param  string $outputFile file encrypted
+     * @param  bool $sign indicates if must sign the content
      * @return false|string  false on error, the encrypted data on success
      */
-    public function encryptFile($KeyID, $Passphrase, $RecipientKeyID, $InputFile, $OutputFile)
+    public function encryptFile($keyId, $passPhrase, $recipientKeyId, $inputFile, $outputFile, $sign = true)
     {
-        if (empty($KeyID))
+        if (empty($keyId))
             throw new InvalidArgumentException('You must specify the KeyID used to encrypt.', 1090);
-        if (empty($RecipientKeyID))
+        if (empty($recipientKeyId))
             throw new InvalidArgumentException('You must specify the RecipientKeyID who will receive the message.', 1091);
-        if (!is_readable($InputFile))
+        if (!is_readable($inputFile))
             throw new InvalidArgumentException('The file to be encrypted must exist.', 1092);
 
         // initialize the output
         $contents = '';
 
         // execute the GPG command
-        if ($this->forkProcess($this->buildGnuPGCommand([
+        $options = [
             '--batch' => null,
             '--yes' => null,
             '--armor' => null,
-            '--sign' => null,
-            '--force-v3-sigs' => null,
             '--passphrase-fd' => '0',
-            '--local-user' => $KeyID,
-            '--default-key' => $KeyID,
-            '--recipient' => $RecipientKeyID,
-            '--output' => $OutputFile,
-            '--encrypt' => $InputFile
-        ]),
-            $Passphrase . "\n", $contents))
+            '--local-user' => $keyId,
+            '--default-key' => $keyId,
+            '--recipient' => $recipientKeyId,
+            '--output' => $outputFile,
+            '--encrypt' => $inputFile
+        ];
+        if ($sign) {
+            $options = array_merge([
+                '--sign' => null,
+                '--force-v3-sigs' => null,
+            ], $options);
+        }
+        if ($this->forkProcess($this->buildGnuPGCommand($options),
+            $passPhrase . "\n", $contents))
             return $contents;
         else
             return false;
@@ -513,24 +526,24 @@ class GnuPG
      *
      * If the decrypted file is signed, the signature is also verified.
      *
-     * @param  string $KeyID the key id to decrypt
-     * @param  string $Passphrase the passphrase to open the key used to decrypt
-     * @param  string $Text data to decrypt
+     * @param  string $keyId the key id to decrypt
+     * @param  string $passPhrase the passphrase to open the key used to decrypt
+     * @param  string $text data to decrypt
      * @return mixed  false on error, the clear (decrypted) data on success
      */
-    public function decrypt($KeyID, $Passphrase, $Text)
+    public function decrypt($keyId, $passPhrase, $text)
     {
-        if (empty($KeyID))
+        if (empty($keyId))
             throw new InvalidArgumentException('You must specify the KeyID used to decrypt.', 1100);
 
         // the text to decrypt from another platforms can has a bad sequence
         // this line removes the bad data and converts to line returns
-        $Text = preg_replace("/\x0D\x0D\x0A/s", "\n", $Text);
+        $text = preg_replace("/\x0D\x0D\x0A/s", "\n", $text);
 
         // we generate an array and add a new line after the PGP header
-        $Text = explode("\n", $Text);
-        if (count($Text) > 1) $Text[1] .= "\n";
-        $Text = implode("\n", $Text);
+        $text = explode("\n", $text);
+        if (count($text) > 1) $text[1] .= "\n";
+        $text = implode("\n", $text);
 
         // initialize the output
         $contents = '';
@@ -540,11 +553,11 @@ class GnuPG
             '--batch' => null,
             '--yes' => null,
             '--passphrase-fd' => '0',
-            '--local-user' => $KeyID,
-            '--default-key' => $KeyID,
+            '--local-user' => $keyId,
+            '--default-key' => $keyId,
             '--decrypt' => null
         ]),
-            $Passphrase . "\n" . $Text, $contents))
+            $passPhrase . "\n" . $text, $contents))
             return $contents;
         else
             return false;
@@ -555,17 +568,17 @@ class GnuPG
      *
      * If the decrypted file is signed, the signature is also verified.
      *
-     * @param  string $KeyID the key id to decrypt
-     * @param  string $Passphrase the passphrase to open the key used to decrypt
-     * @param  string $InputFile file to decrypt
-     * @param  string $OutputFile file decrypted
+     * @param  string $keyId the key id to decrypt
+     * @param  string $passPhrase the pass phrase to open the key used to decrypt
+     * @param  string $inputFile file to decrypt
+     * @param  string $outputFile file decrypted
      * @return mixed  false on error, the clear (decrypted) data on success
      */
-    public function decryptFile($KeyID, $Passphrase, $InputFile, $OutputFile)
+    public function decryptFile($keyId, $passPhrase, $inputFile, $outputFile)
     {
-        if (empty($KeyID))
+        if (empty($keyId))
             throw new InvalidArgumentException('You must specify the KeyID used to decrypt.', 1110);
-        if (!is_readable($InputFile))
+        if (!is_readable($inputFile))
             throw new InvalidArgumentException('The file to be decrypted must exist.', 1111);
 
         // initialize the output
@@ -576,12 +589,12 @@ class GnuPG
             '--batch' => null,
             '--yes' => null,
             '--passphrase-fd' => '0',
-            '--local-user' => $KeyID,
-            '--default-key' => $KeyID,
-            '--output' => $OutputFile,
-            '--decrypt' => $InputFile
+            '--local-user' => $keyId,
+            '--default-key' => $keyId,
+            '--output' => $outputFile,
+            '--decrypt' => $inputFile
         ]),
-            $Passphrase . "\n", $contents))
+            $passPhrase . "\n", $contents))
             return $contents;
         else
             return false;
@@ -597,18 +610,18 @@ class GnuPG
      * 2 = must delete secret key first
      * 3 = ambiguous specification
      *
-     * @param  string $KeyID the key id to be removed, if this is the secret key you must specify the fingerprint
-     * @param  string $KeyKind the kind of the keys, can be secret or public
+     * @param  string $keyId the key id to be removed, if this is the secret key you must specify the fingerprint
+     * @param  string $keyKind the kind of the keys, can be secret or public
      * @return boolean|string  true on success, otherwise false or the delete error code
      */
-    public function deleteKey($KeyID, $KeyKind = self::KEY_KIND_PUBLIC)
+    public function deleteKey($keyId, $keyKind = self::KEY_KIND_PUBLIC)
     {
-        if (empty($KeyID))
+        if (empty($keyId))
             throw new InvalidArgumentException('You must specify the KeyID to delete.', 1120);
 
         // validate the KeyKind
-        $KeyKind = strtolower(substr($KeyKind, 0, 3));
-        if (($KeyKind != 'pub') && ($KeyKind != 'sec'))
+        $keyKind = strtolower(substr($keyKind, 0, 3));
+        if (($keyKind != 'pub') && ($keyKind != 'sec'))
             throw new InvalidArgumentException('The Key kind must be public or secret.', 1121);
 
         // initialize the output
@@ -619,7 +632,7 @@ class GnuPG
             '--batch' => null,
             '--yes' => null,
             '--status-fd' => '1',
-            (($KeyKind == 'pub') ? '--delete-key' : '--delete-secret-keys') => $KeyID
+            (($keyKind == 'pub') ? '--delete-key' : '--delete-secret-keys') => $keyId
         ]),
             false, $contents))
             return true;
@@ -635,21 +648,21 @@ class GnuPG
     /**
      * Sign the recipient key with the private key.
      *
-     * @param  string $KeyID the key id used to sign
-     * @param  string $Passphrase the passphrase to open the key used to sign
-     * @param  string $RecipientKeyID the recipient key id to be signed
-     * @param  int $CertificationLevel the level of thrust for the recipient key
+     * @param  string $keyId the key id used to sign
+     * @param  string $passPhrase the pass phrase to open the key used to sign
+     * @param  string $recipientKeyId the recipient key id to be signed
+     * @param  int $certificationLevel the level of thrust for the recipient key
      *    0 : means you make no particular claim as to how carefully you verified the key
      *    1 : means you believe the key is owned by the person who claims to own it but you could not, or did not verify the key at all
      *    2 : means you did casual verification of the key
      *    3 : means you did extensive verification of the key
      * @return boolean|string true on success, otherwise false or the sign error code
      */
-    public function signKey($KeyID, $Passphrase, $RecipientKeyID, $CertificationLevel = self::CERT_LEVEL_NONE)
+    public function signKey($keyId, $passPhrase, $recipientKeyId, $certificationLevel = self::CERT_LEVEL_NONE)
     {
-        if (empty($KeyID))
+        if (empty($keyId))
             throw new InvalidArgumentException('You must specify the KeyID used to sign.', 1130);
-        if (empty($RecipientKeyID))
+        if (empty($recipientKeyId))
             throw new InvalidArgumentException('You must specify the RecipientKeyID to be signed.', 1131);
 
         // initialize the output
@@ -663,12 +676,12 @@ class GnuPG
             '--no-ask-cert-level' => null,
             '--passphrase-fd' => '0',
             '--status-fd' => '1',
-            '--local-user' => $KeyID,
-            '--default-key' => $KeyID,
-            '--default-cert-level' => strval($CertificationLevel),
-            '--sign-key' => $RecipientKeyID
+            '--local-user' => $keyId,
+            '--default-key' => $keyId,
+            '--default-cert-level' => strval($certificationLevel),
+            '--sign-key' => $recipientKeyId
         ]),
-            $Passphrase . "\n", $contents))
+            $passPhrase . "\n", $contents))
             return $contents;
         else
             return false;
