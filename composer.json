@@ -13,6 +13,9 @@
       "email": "diego.calle@placetopay.com"
     }
   ],
+  "archive": {
+    "exclude": [".git", ".gitignore"]
+  },
   "repositories": [
     {
       "type": "composer",
