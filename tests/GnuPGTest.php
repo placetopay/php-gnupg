@@ -1,43 +1,17 @@
 <?php
 
-use PHPUnit\Framework\TestCase;
+namespace Tests;
+
 use PlacetoPay\GnuPG\GnuPG;
 
-class GnuPGTest extends TestCase
+class GnuPGTest extends BaseTestCase
 {
-    protected static $generatedKey;
-    protected static $generatedFingerprint;
-    protected static $generatedPassPhrase = 'superSecretPhrase';
-    protected static $importedKey = '464B9930963B3E57';
-
-    /**
-     * @covers GnuPG::genKey()
-     */
-    public function testCreateKey()
-    {
-        $gpg = $this->gnuPG();
-        $fingerprint = $gpg->genKey('TestCase', 'Used for unit test', 'testing@testing.com', self::$generatedPassPhrase, '5y');
-        if ($fingerprint === false)
-            $this->fail($gpg->error());
-
-        $this->assertInternalType('string', $fingerprint, 'Expecting the fingerprint after key creation');
-        self::$generatedFingerprint = $fingerprint;
-
-        $keyData = $gpg->listKeys(GnuPG::KEY_KIND_SECRET, $fingerprint);
-        if (($keyData === false) || empty($keyData))
-            $this->fail($gpg->error());
-
-        $this->assertEquals($fingerprint, $keyData[0]['Fingerprint'], 'Can not be vailidated the fingerprint');
-        $this->assertContains('testing@testing.com', $keyData[0]['UserID'], 'Can not be recovered the created key');
-        self::$generatedKey = $keyData[0]['KeyID'];
-    }
-
     /**
      * @covers GnuPG::import()
      */
     public function testImportKey()
     {
-        $keyToImport = <<<EOL
+        $keyToImport = <<<'EOL'
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: SKS 1.1.6
 Comment: Hostname: pgp.mit.edu
@@ -91,30 +65,32 @@ EOL;
 
         $gpg = $this->gnuPG();
         $imported = $gpg->import($keyToImport);
-        if (($imported === false) || empty($imported))
+        if (($imported === false) || empty($imported)) {
             $this->fail($gpg->error());
+        }
         $this->assertEquals(self::$importedKey, $imported[0]['KeyID'], 'Expecting that the imported key');
     }
 
     /**
      * @depends testCreateKey
      * @depends testImportKey
-     * @covers GnuPG::signKey()
+     * @covers  GnuPG::signKey()
      */
     public function testSignKey()
     {
         $gpg = $this->gnuPG();
         $signed = $gpg->signKey(self::$generatedFingerprint, self::$generatedPassPhrase, self::$importedKey, GnuPG::CERT_LEVEL_FULL);
-        if ($signed === false)
+        if ($signed === false) {
             $this->fail($gpg->error());
+        }
     }
 
     /**
      * @depends testCreateKey
-     * @covers GnuPG::encrypt()
-     * @covers GnuPG::encryptFile()
-     * @covers GnuPG::decrypt()
-     * @covers GnuPG::decryptFile()
+     * @covers  GnuPG::encrypt()
+     * @covers  GnuPG::encryptFile()
+     * @covers  GnuPG::decrypt()
+     * @covers  GnuPG::decryptFile()
      */
     public function testEncryptDecrypt()
     {
@@ -126,25 +102,29 @@ EOL;
         // creates the receiver key, normally you just import the key and encrypt to that key
         // but for the test we create a new key
         $receiverFingerprint = $gpg->genKey('Receiver TestCase', 'Used for unit test', 'third@party.com', $receiverPassPhrase, 30);
-        if ($receiverFingerprint === false)
+        if ($receiverFingerprint === false) {
             $this->fail($gpg->error());
+        }
         $this->assertInternalType('string', $receiverFingerprint, 'Expecting the fingerprint after key creation');
 
         // now get the keyId, since we have the fingerprint (you never get the fingerprint)
         // you also can encrypt with the fingerprint, but we do this extra step just to show the regular usage
         $keys = $gpg->listKeys(GnuPG::KEY_KIND_PUBLIC, $receiverFingerprint);
-        if (($keys === false) || empty($keys))
+        if (($keys === false) || empty($keys)) {
             $this->fail($gpg->error());
+        }
         $receiverKey = $keys[0]['KeyID'];
 
         $encrypted = $gpg->encrypt(self::$generatedKey, self::$generatedPassPhrase, $receiverKey, $message);
-        if ($encrypted === false)
+        if ($encrypted === false) {
             $this->fail($gpg->error());
+        }
         $this->assertNotEquals($message, $encrypted, 'Encryption error the encrypted message can not be the same that original message');
 
         $decrypted = $gpg->decrypt($receiverKey, $receiverPassPhrase, $encrypted);
-        if ($encrypted === false)
+        if ($encrypted === false) {
             $this->fail($gpg->error());
+        }
         $this->assertEquals($message, $decrypted, 'Error on decryption the expected message differs');
 
         $inputFile = tempnam(__DIR__, 'it');
@@ -169,7 +149,7 @@ EOL;
     /**
      * @depends testCreateKey
      * @depends testImportKey
-     * @covers GnuPG::listKeys()
+     * @covers  GnuPG::listKeys()
      */
     public function testListKeys()
     {
@@ -185,38 +165,30 @@ EOL;
     /**
      * @depends testEncryptDecrypt
      * @depends testImportKey
-     * @covers GnuPG::deleteKey()
+     * @covers  GnuPG::deleteKey()
      */
     public function testDeleteKeys()
     {
         // delete the created secret key
         $gpg = $this->gnuPG();
         $deleted = $gpg->deleteKey(self::$generatedFingerprint, GnuPG::KEY_KIND_SECRET);
-        if ($deleted === false)
+        if ($deleted === false) {
             $this->fail($gpg->error());
+        }
         $this->assertTrue($deleted, $deleted);
 
         // delete the created public key
         $deleted = $gpg->deleteKey(self::$generatedKey, GnuPG::KEY_KIND_PUBLIC);
-        if ($deleted === false)
+        if ($deleted === false) {
             $this->fail($gpg->error());
+        }
         $this->assertTrue($deleted, $deleted);
 
         // delete the imported key
         $deleted = $gpg->deleteKey(self::$importedKey, GnuPG::KEY_KIND_PUBLIC);
-        if ($deleted === false)
+        if ($deleted === false) {
             $this->fail($gpg->error());
+        }
         $this->assertTrue($deleted, $deleted);
-    }
-
-    /**
-     * @return GnuPG
-     */
-    protected function gnuPG()
-    {
-        return new GnuPG([
-            'gpgExecutable' => null,
-            'ringPath' => __DIR__ . '/gnupg-test'
-        ]);
     }
 }
