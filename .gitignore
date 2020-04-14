@@ -4,3 +4,4 @@ vendor/
 tests/coverage
 auth.json
 packages
+.phpunit.result.cache
