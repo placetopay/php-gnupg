@@ -32,7 +32,18 @@
       "tests/"
     ]
   },
+  "require": {
+    "php": "^7.4|^8.0"
+  },
   "require-dev": {
-    "phpunit/phpunit": "^5.7"
+    "friendsofphp/php-cs-fixer": "^3.0",
+    "phpunit/phpunit": "^9.0",
+    "symfony/var-dumper": "^5.3"
+  },
+  "scripts": {
+    "test": "vendor/bin/phpunit tests/",
+    "test-ci" : "vendor/bin/phpunit --verbose --testdox --log-junit ./test-reports/junit.xml",
+    "phpcs": "vendor/bin/php-cs-fixer fix",
+    "phpcs-validate" : "vendor/bin/php-cs-fixer fix --dry-run --diff"
   }
 }

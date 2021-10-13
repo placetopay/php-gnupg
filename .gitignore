@@ -4,3 +4,6 @@ vendor/
 tests/coverage
 auth.json
 packages
+.php-cs-fixer.cache
+.php-cs-fixer.php
+.phpunit.result.cache
